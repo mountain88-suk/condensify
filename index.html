@@ -246,8 +246,13 @@ async function init() {
       indexURL: "./pyodide/",
     });
     setOverlay("正在安装 fontTools…");
-    await pyodide.loadPackage(["./pyodide/packages/micropip-0.11.1-py3-none-any.whl", "./pyodide/packages/packaging-26.3-py3-none-any.whl"]);
-    await pyodide.runPythonAsync(`import micropip\nawait micropip.install(['./wheels/fonttools-4.65.0-py3-none-any.whl'])`);
+    // 用页面地址推导绝对 URL（micropip.install 在 WASM 内执行，相对路径会解析到 Pyodide 虚拟文件系统而非网页）
+    const _dir = new URL(".", location.href).href;
+    const micropipUrl = new URL("pyodide/packages/micropip-0.11.1-py3-none-any.whl", _dir).href;
+    const packagingUrl = new URL("pyodide/packages/packaging-26.3-py3-none-any.whl", _dir).href;
+    const fonttoolsUrl = new URL("wheels/fonttools-4.65.0-py3-none-any.whl", _dir).href;
+    await pyodide.loadPackage([micropipUrl, packagingUrl]);
+    await pyodide.runPythonAsync(`import micropip\nawait micropip.install([${JSON.stringify(fonttoolsUrl)}])`);
 
     // 载入 scripts/ 下的脚本，复用与命令行完全一致的逻辑。
     // 关键：这些脚本都带 `if __name__ == "__main__": main()` 守卫。Pyodide 里 runPythonAsync
