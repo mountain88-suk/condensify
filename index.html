@@ -4,7 +4,7 @@
 <meta charset="UTF-8" data-page-node-id="d4PZAqPJWMFvv1Ce6BYZ7K" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="sD6n7HPrkrD5NYdBsvEGNf" />
 <title>字体收窄工具 · Font Condenser</title>
-<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<script src="./pyodide/pyodide.js"></script>
 <style>
   :root {
     --bg: #fbf7f0;
@@ -243,11 +243,11 @@ async function init() {
   try {
     setOverlay("正在加载 Pyodide 运行时…");
     pyodide = await loadPyodide({
-      indexURL: `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`,
+      indexURL: "./pyodide/",
     });
     setOverlay("正在安装 fontTools…");
-    await pyodide.loadPackage("micropip");
-    await pyodide.runPythonAsync(`import micropip\nawait micropip.install('fonttools')`);
+    await pyodide.loadPackage(["./pyodide/packages/micropip-0.11.1-py3-none-any.whl", "./pyodide/packages/packaging-26.3-py3-none-any.whl"]);
+    await pyodide.runPythonAsync(`import micropip\nawait micropip.install(['./wheels/fonttools-4.65.0-py3-none-any.whl'])`);
 
     // 载入 scripts/ 下的脚本，复用与命令行完全一致的逻辑。
     // 关键：这些脚本都带 `if __name__ == "__main__": main()` 守卫。Pyodide 里 runPythonAsync
