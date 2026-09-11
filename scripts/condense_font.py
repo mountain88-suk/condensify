@@ -36,8 +36,24 @@ def width_class(sx):
 
 def _compose_component_transform(t, sx, m=0.0):
     """复合字形：把横向缩放+倾斜并到组件变换矩阵的左侧（M · T）。
-    M = [[sx, m], [0, 1]]；m = tan(倾斜角)，实现 x' = sx*x + m*y 的伪斜体效果。"""
-    a, b, c, d, e, f = t
+    M = [[sx, m], [0, 1]]；m = tan(倾斜角)，实现 x' = sx*x + m*y 的伪斜体效果。
+    TrueType 复合字形 transform 可能是 None / 标量 / 2-tuple / 4-tuple / 6-tuple，统一归一化为 6-tuple。"""
+    if t is None:
+        a = 1.0; b = c = e = f = 0.0; d = 1.0
+    elif isinstance(t, (int, float)):
+        a = d = float(t); b = c = e = f = 0.0
+    elif len(t) == 1:
+        a = d = float(t[0]); b = c = e = f = 0.0
+    elif len(t) == 2:
+        a, d = t
+        b = c = e = f = 0.0
+    elif len(t) == 4:
+        a, b, c, d = t
+        e = f = 0.0
+    elif len(t) == 6:
+        a, b, c, d, e, f = t
+    else:
+        raise ValueError(f"不支持的组件变换长度 {len(t)}: {t!r}")
     return (a * sx + b * m, b, c * sx + d * m, d, e * sx + f * m, f)
 
 
