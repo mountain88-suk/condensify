@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="QhGKiLmxLOvFNcSuO5NQ6i">
+<head data-page-node-id="K5Ihi6NFzFgqxrwsxdu0E3">
+<meta charset="UTF-8" data-page-node-id="d4PZAqPJWMFvv1Ce6BYZ7K" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="sD6n7HPrkrD5NYdBsvEGNf" />
+<title>字体收窄工具 · Font Condenser</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<style>
+  :root {
+    --bg: #fbf7f0;
+    --card: #fffdf9;
+    --ink: #3a322b;
+    --muted: #8a7f73;
+    --line: #ece3d6;
+    --amber: #c8843c;
+    --amber-soft: #f6e7d4;
+    --green: #3f8f5b;
+    --red: #c0492f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 16px 60px;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+  .card h2 { font-size: 15px; margin: 0 0 14px; color: var(--amber); }
+  .drop {
+    border: 2px dashed var(--line); border-radius: var(--radius);
+    padding: 30px 18px; text-align: center; cursor: pointer;
+    transition: .15s; background: #fffdf9;
+  }
+  .drop.over { border-color: var(--amber); background: var(--amber-soft); }
+  .drop p { margin: 6px 0; color: var(--muted); font-size: 13px; }
+  .drop b { color: var(--ink); }
+  input[type=file] { display: none; }
+  label.field { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input[type=text], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 9px; font-size: 14px; background: #fff; color: var(--ink);
+  }
+  input[type=text]:focus, select:focus { outline: none; border-color: var(--amber); }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 140px; }
+  .slider-row { display: flex; align-items: center; gap: 14px; }
+  input[type=range] { flex: 1; accent-color: var(--amber); }
+  .scale-val {
+    font-variant-numeric: tabular-nums; font-weight: 600; min-width: 52px;
+    text-align: right; color: var(--amber); font-size: 18px;
+  }
+  .scale-val-input {
+    width: 64px; flex: 0 0 auto; padding: 6px 8px; text-align: center;
+    font-variant-numeric: tabular-nums; font-weight: 600; color: var(--amber); font-size: 16px;
+  }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .chip {
+    flex: 0 0 auto; padding: 5px 12px; border: 1px solid var(--line); border-radius: 20px;
+    background: #fff; color: var(--muted); font-size: 13px; cursor: pointer; transition: .12s;
+  }
+  .chip:hover { border-color: var(--amber); color: var(--amber); }
+  .chip.active { background: var(--amber); border-color: var(--amber); color: #fff; }
+  .preview {
+    margin-top: 16px; border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; background: #fff; overflow: hidden;
+  }
+  .preview .lab { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .preview .line { font-size: 40px; line-height: 1.25; white-space: nowrap; }
+  .preview .orig { display: inline-block; transform-origin: left center; }
+  .preview .narrow { display: inline-block; transform-origin: left center; transform: scaleX(1); }
+  .preview .box { border-bottom: 1px dotted var(--line); margin-bottom: 12px; padding-bottom: 10px; }
+  .btn {
+    display: inline-block; padding: 12px 22px; border: none; border-radius: 10px;
+    background: var(--amber); color: #fff; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: .15s; letter-spacing: .5px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn:hover:not(:disabled) { filter: brightness(1.05); }
+  .status {
+    margin-top: 14px; font-size: 13px; color: var(--muted);
+    background: #fff; border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 12px; min-height: 20px; white-space: pre-wrap;
+  }
+  .status.err { color: var(--red); border-color: #f0c9c0; background: #fdf2f0; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge.ok { background: #e3f3e9; color: var(--green); }
+  .badge.warn { background: #fbe9e2; color: var(--red); }
+  .badge.mid { background: var(--amber-soft); color: var(--amber); }
+  .info { font-size: 13px; color: var(--ink); }
+  .info .k { color: var(--muted); display: inline-block; min-width: 92px; }
+  .hidden { display: none; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .check input { width: 16px; height: 16px; accent-color: var(--amber); }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(251,247,240,.96);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 50; gap: 12px;
+  }
+  .overlay .spin {
+    width: 34px; height: 34px; border: 3px solid var(--line);
+    border-top-color: var(--amber); border-radius: 50%; animation: sp 0.8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .overlay p { color: var(--muted); font-size: 13px; }
+  code { background: #f3ece1; padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+</style>
+</head>
+<body data-page-node-id="WE27Uf3hE4KEOu3MSTt8Ha">
+<div class="overlay" id="overlay" data-page-node-id="wCSwJ415K2saWkZwcHlfe3">
+  <div class="spin" data-page-node-id="Ao58jCVeNoDXKcwp56mPTJ"></div>
+  <p id="overlay-msg" data-page-node-id="2QKChTake8YVOcChxAmL81">正在加载运行时（首次约 5–15 秒）…</p>
+</div>
+
+<div class="wrap" data-page-node-id="VkgEWkOhNna4d3DiQoj4Zb">
+  <h1 data-page-node-id="UsxgrEC4fuiBiqZKJgpXpH">Condensify · 字体收窄工具</h1>
+  <p class="sub" data-page-node-id="ecQMloqZ6GTlxflsiCOCbT">上传 OTF / TTF → 拖滑块选宽度与倾斜 → 一键下载窄版 / 伪斜体。字体全程在浏览器本地处理，不上传任何服务器。</p>
+
+  <div class="card" data-page-node-id="TtTiHW4GgDlgZ6eZENGBH8">
+    <h2 data-page-node-id="0jg5Ciq5gpE9BCuR2bTYeQ">① 上传字体</h2>
+    <label class="drop" id="drop" data-page-node-id="ludao55AOrtlWJ743aBB0i">
+      <p data-page-node-id="8rQ9lXy0yGtrkZuSB437kZ"><b data-page-node-id="NPqDLQhEQFjMHP2aEu9nNA">点击选择</b> 或 拖拽字体文件到此处</p>
+      <p data-page-node-id="uDpUYxUQEESIGtuki3201g">支持 .ttf / .otf（.woff2 暂不支持）</p>
+      <input type="file" id="file" accept=".ttf,.otf,.ttc" data-page-node-id="RRf5XhVeEl96cCYAyEH7CC" />
+    </label>
+    <div id="file-info" class="info hidden" style="margin-top:12px;" data-page-node-id="q9OHePUhki5iXoksrlTA2X"></div>
+  </div>
+
+  <div class="card hidden" id="work-card" data-page-node-id="GUGAqQ7hppFsZvlfaqTTqE">
+    <h2 data-page-node-id="SWEqlUwVoDJNPYRVSMSoiy">② 选择宽度 / 倾斜 & 预览</h2>
+    <label class="field" data-page-node-id="xvFs0tU7ni5yjZyFszWZZf">预览文字（上传后按字体自动选，可手改）</label>
+    <input type="text" id="sample" value="祝你天天开心哇" data-page-node-id="dP6XEvECvn4USqF7U3H6rY" />
+
+    <div class="preview" data-page-node-id="xrxibHb7LZ4h0A4AsImMHX">
+      <div class="box" data-page-node-id="U6MQ9uB6CAuv1FkpuVgiXu">
+        <div class="lab" data-page-node-id="Yc3c16oBKNb7E7GCAIsdL3">原版</div>
+        <div class="line" data-page-node-id="QsAzDRMUQhPeMEteVTYZt2"><span class="orig" id="pv-orig" data-page-node-id="Rtc5voh7zAnPG1KAb5NeVf">祝你天天开心哇</span></div>
+      </div>
+      <div class="box" data-page-node-id="lyJYthBDIxTOgSw2wnamYe">
+        <div class="lab" data-page-node-id="nmgTVbw7qsnyW5xqtoPSbC">收窄预览（CSS scaleX，与真实渲染逐像素等价）</div>
+        <div class="line" data-page-node-id="GDcSWDXomTxHWgbHCUFEX1"><span class="narrow" id="pv-narrow" data-page-node-id="M65SMgL58mqWrIEJkB3WzO">祝你天天开心哇</span></div>
+      </div>
+      <div class="box hidden" id="gen-box" style="border-bottom:none;margin-bottom:0;padding-bottom:0;" data-page-node-id="genbox">
+        <div class="lab" data-page-node-id="genlab">生成结果（真实渲染，下载前核对）</div>
+        <div class="line" data-page-node-id="genline"><span class="gen" id="pv-gen" data-page-node-id="genpv">祝你天天开心哇</span></div>
+      </div>
+    </div>
+
+    <label class="field" style="margin-top:18px;" data-page-node-id="scalelab">宽度</label>
+    <div class="chips" data-page-node-id="scalechips">
+      <button type="button" class="chip" data-v="50">50%</button>
+      <button type="button" class="chip" data-v="60">60%</button>
+      <button type="button" class="chip" data-v="70">70%</button>
+      <button type="button" class="chip" data-v="80">80%</button>
+      <button type="button" class="chip" data-v="90">90%</button>
+    </div>
+    <div class="slider-row" style="margin-top:8px;" data-page-node-id="buwxLWD9xGv7eTINCuliAv">
+      <input type="range" id="scale" min="50" max="100" step="1" value="80" data-page-node-id="Dc01AQI0a4fbyqBoOH7yB4" />
+      <input type="text" id="scale-val" class="scale-val-input" value="80%" data-page-node-id="8qojwl1MV8ZyFwg0KHQWhJ" />
+    </div>
+    <div class="note" data-page-node-id="2GV1dePVK4IHWP897rx2VH">点百分比可直接输入数值（50–100），或点上方小按钮快速选。宽度表示横向压缩比例，<b data-page-node-id="vUHg7FiIUePBiIVpc2tBhK">字高完全不变</b>。</div>
+
+    <label class="field" style="margin-top:18px;" data-page-node-id="slant-label">倾斜 / 伪斜体</label>
+    <div class="slider-row" data-page-node-id="slant-row">
+      <input type="range" id="slant" min="-20" max="20" step="1" value="0" data-page-node-id="slant-input" />
+      <span class="scale-val" id="slant-val" data-page-node-id="slant-val">0°</span>
+    </div>
+    <div class="note" data-page-node-id="slant-note">0° = 正体；<b>负值向右倾斜（常规斜体）</b>，正值向左（反向斜体）。预览用 CSS <code>skewX</code>，真实字体用相同倾斜矩阵，两者逐像素一致。</div>
+
+    <div class="row" style="margin-top:18px;" data-page-node-id="gLPxdE5BqFF4tXAa2bCRL2">
+      <div data-page-node-id="Xcr4PuNoi575G7qndDgGtn">
+        <label class="field" data-page-node-id="GbBskHDuIqAdpEOUWB0d6g">输出格式</label>
+        <select id="fmt" data-page-node-id="lFZ17xBnZsBaazFtmkshc1">
+          <option value="ttf" data-page-node-id="5kG8gx8vt44Pkw1NP1Fn7z">TTF（兼容性最好，推荐）</option>
+          <option value="otf" data-page-node-id="jFcpvRNVAjIbYPHN2ovHNL">OTF</option>
+        </select>
+      </div>
+      <div data-page-node-id="CHKHAHcInHp668rI56gDrJ">
+        <label class="field" data-page-node-id="95nQJ9NQ7cJh69ThEDyJZ1">新字体名（可选）</label>
+        <input type="text" id="fname" placeholder="留空则自动命名" data-page-node-id="Asv29JEUl6G4LgnPpHVRKX" />
+      </div>
+    </div>
+
+    <label class="check" style="margin-top:16px;" data-page-node-id="hq4sELv55xCQAliLB5kBUx">
+      <input type="checkbox" id="fill" data-page-node-id="JkNQgdCYiawGgy7oPixaoT" />
+      <span data-page-node-id="1BuuDsUmiS3kOV8EkCkMfq">同时补齐缺失的简体汉字（需下载约 9MB 补字源 Noto Sans SC）</span>
+    </label>
+    <div id="fill-url-row" class="hidden" style="margin-top:8px;" data-page-node-id="UMeaxcKzQ4OctERblp11rB">
+      <label class="field" data-page-node-id="0m3vshDz4Pj4cV1Qtg6qIF">补字源地址（可用默认，或换成你自己的）</label>
+      <input type="text" id="fill-url"
+        value="https://gh-proxy.com/https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Black.otf" data-page-node-id="GAv1DXmr3yq2svk5yag9LJ" />
+    </div>
+
+    <div style="margin-top:20px;" data-page-node-id="4O6j1nKXtr3fpHWegjnjck">
+      <button class="btn" id="gen" disabled data-page-node-id="Cfq5sd177EL96GTXyEBX37">生成并下载</button>
+    </div>
+    <div class="status" id="status" data-page-node-id="PFr2b0SOnyqgQg7gu94hq2">就绪。</div>
+  </div>
+
+  <div class="card hidden" id="lic-card" data-page-node-id="JmqnTrguelE5QsoOTvjuL5">
+    <h2 data-page-node-id="E3lV098i6DkBARukR2Oa1Z">③ 字体体检 & 许可</h2>
+    <div id="lic-body" class="info" data-page-node-id="BoZQsIDH6OqJLKtWZqSfy1"></div>
+    <div class="note" data-page-node-id="avxVEC3mckdFRJTl7iwEq3">许可结论仅供参考，最终以字体官方条款为准。改造后的字体受原字体许可约束，责任在你。</div>
+  </div>
+
+  <div class="card" data-page-node-id="89At0uqpP9wg17RZxSCKe6">
+    <h2 data-page-node-id="4EjRQHiReJxzQlof2FvqC4">说明</h2>
+    <p class="note" style="margin:0;" data-page-node-id="zdPTBVP0zSS9PlBA8UJLOL">
+      原理：只缩放 x 轴、y 轴不动，字变「窄长」不是「压扁」；倾斜则是 x 随 y 偏移的伪斜体效果。<br data-page-node-id="doLo4VNxsnCFiCpkLm6URd"/>
+      底层用 <a href="https://github.com/fonttools/fonttools" data-page-node-id="aSW2N9ur8vnE5uJ8ElUst9">fontTools</a> 在浏览器（Pyodide / WASM）中运行，与命令行版同一套逻辑。<br data-page-node-id="uW0OdDQkA7mkcTWMvXE62R"/>
+      本工具代码 MIT；你生成的字体受原字体许可约束。
+    </p>
+  </div>
+</div>
+
+<script>
+const PYODIDE_VERSION = "0.27.7";
+let pyodide = null;
+let inputBytes = null;      // Uint8Array of uploaded font
+let srcExt = "ttf";
+let familyName = "";
+let licSafe = null;         // 源字体许可是否可修改/再分发（OFL 等）
+let ready = false;
+
+const $ = (id) => document.getElementById(id);
+const overlay = $("overlay");
+
+function setStatus(msg, isErr) {
+  const s = $("status");
+  s.textContent = msg;
+  s.className = "status" + (isErr ? " err" : "");
+}
+function setOverlay(msg) { $("overlay-msg").textContent = msg; }
+
+async function init() {
+  try {
+    setOverlay("正在加载 Pyodide 运行时…");
+    pyodide = await loadPyodide({
+      indexURL: `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`,
+    });
+    setOverlay("正在安装 fontTools…");
+    await pyodide.loadPackage("micropip");
+    await pyodide.runPythonAsync(`import micropip\nawait micropip.install('fonttools')`);
+
+    // 载入 scripts/ 下的脚本，复用与命令行完全一致的逻辑。
+    // 关键：这些脚本都带 `if __name__ == "__main__": main()` 守卫。Pyodide 里 runPythonAsync
+    // 跑在 __main__ 命名空间，不处理会触发命令行 argparse 直接报错、初始化失败。
+    // 因此把守卫替换成 `if False:`，只保留函数定义（condense / fill / report / convert）。
+    // 多候选路径：兼容「部署在 font-condenser 根目录（入口 web/index.html）」与
+    // 「部署在 web 根目录（scripts 同层）」等不同托管布局，避免 404。
+    const candidates = ["../scripts/", "scripts/", "../../scripts/"];
+    for (const f of ["condense_font.py", "fill_missing.py", "font_report.py", "otf2ttf.py"]) {
+      let code = null, ok = false;
+      for (const base of candidates) {
+        try {
+          const r = await fetch(base + f);
+          if (r.ok) { code = await r.text(); ok = true; break; }
+        } catch (e) {}
+      }
+      if (!ok) throw new Error("无法加载 " + f + "：请通过 http 服务打开本页（不要直接双击 file://）。");
+      code = code.replace(/if __name__ == ['"]__main__['"]\s*:/, "if False:");
+      await pyodide.runPythonAsync(code);
+    }
+    ready = true;
+    overlay.style.display = "none";
+  } catch (e) {
+    setOverlay("加载失败：" + e.message);
+    $("overlay-msg").style.color = "var(--red)";
+  }
+}
+
+// ---------- 上传 ----------
+const drop = $("drop");
+$("file").addEventListener("change", (e) => handleFile(e.target.files[0]));
+["dragover", "dragenter"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => {
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+async function handleFile(file) {
+  if (!file) return;
+  srcExt = (file.name.split(".").pop() || "ttf").toLowerCase();
+  if (!["ttf", "otf", "ttc"].includes(srcExt)) {
+    alert("只支持 .ttf / .otf / .ttc");
+    return;
+  }
+  inputBytes = new Uint8Array(await file.arrayBuffer());
+
+  // 预览字体
+    // 用文件头判断真实字体格式，而不是靠扩展名（很多 .ttf 其实是 OTTO，反之亦然）
+    const sig = new TextDecoder().decode(inputBytes.slice(0, 4));
+    let fmtHint;
+    let isTtc = false;
+    if (sig === "ttcf") {
+      isTtc = true;
+      fmtHint = "truetype";
+    } else if (sig === "OTTO") {
+      fmtHint = "opentype";
+    } else {
+      fmtHint = "truetype";
+    }
+    const url = URL.createObjectURL(file);
+    let style = document.getElementById("upf-style");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "upf-style";
+      document.head.appendChild(style);
+    }
+    // 同时给两种 format 提示，浏览器会挑能用的那个；避免 OTTO 装成 truetype 导致 preview 出不来
+    style.textContent = `@font-face{font-family:'upFont';src:url(${url}) format('${fmtHint}'), url(${url}) format('${fmtHint === "opentype" ? "truetype" : "opentype"}');}`;
+    $("pv-orig").style.fontFamily = "upFont, sans-serif";
+    $("pv-narrow").style.fontFamily = "upFont, sans-serif";
+
+    // 等字体真正加载后再刷新预览，避免某些字体首次渲染空白
+    try {
+      await document.fonts.load("40px upFont");
+    } catch (e) {
+      // 继续，旧浏览器可能不支持 document.fonts
+    }
+    updatePreview();
+
+    $("work-card").classList.remove("hidden");
+    $("file-info").classList.remove("hidden");
+    let info = `<span class="k">已选择</span> ${file.name} <span class="k">大小</span> ${(file.size/1024/1024).toFixed(2)} MB`;
+    if (isTtc) {
+      info += ` <span class="badge mid">TTC 仅预览首体</span>`;
+    }
+    $("file-info").innerHTML = info;
+    $("gen").disabled = !ready;
+    setStatus("字体已载入，可调宽度或点生成。");
+
+    await runReport();
+}
+
+function updatePreview() {
+  const txt = $("sample").value || "祝你天天开心哇";
+  $("pv-orig").textContent = txt;
+  $("pv-narrow").textContent = txt;
+  applyTransforms();
+}
+function applyTransforms() {
+  const s = +$("scale").value / 100;
+  const a = +$("slant").value;
+  $("pv-narrow").style.transform = `scaleX(${s}) skewX(${a}deg)`;
+  $("scale-val").textContent = $("scale").value + "%";
+  $("slant-val").textContent = a + "°";
+}
+function syncFillAvailability() {
+  const slant = +$("slant").value;
+  const fillRow = $("fill").closest("label");
+  const fillNote = $("fill-slant-note");
+  if (slant !== 0) {
+    $("fill").checked = false;
+    $("fill").disabled = true;
+    $("fill-url-row").classList.add("hidden");
+    if (!fillNote) {
+      const span = document.createElement("span");
+      span.id = "fill-slant-note";
+      span.className = "note";
+      span.style.color = "var(--red)";
+      span.textContent = "倾斜与补字暂不兼容：补入的字会是正体，风格不一致。";
+      fillRow.parentNode.insertBefore(span, fillRow.nextSibling);
+    }
+  } else {
+    $("fill").disabled = false;
+    if (fillNote) fillNote.remove();
+  }
+}
+$("scale").addEventListener("input", () => { applyTransforms(); setActiveChip(+$("scale").value); });
+$("slant").addEventListener("input", () => { applyTransforms(); syncFillAvailability(); });
+$("sample").addEventListener("input", () => { sampleTouched = true; updatePreview(); });
+$("fill").addEventListener("change", () => {
+  $("fill-url-row").classList.toggle("hidden", !$("fill").checked);
+});
+
+// 快速选择 chips（50/60/70/80/90）
+document.querySelectorAll(".chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const v = +chip.dataset.v;
+    $("scale").value = v;
+    applyTransforms();
+    setActiveChip(v);
+  });
+});
+
+// 百分比输入框：可手动输入，夹到 50–100
+$("scale-val").addEventListener("input", () => {
+  const n = parseInt($("scale-val").value.replace(/%/g, "").trim(), 10);
+  if (!isNaN(n)) {
+    const v = Math.min(100, Math.max(50, n));
+    $("scale").value = v;
+    applyTransforms();
+    setActiveChip(v);
+  }
+});
+$("scale-val").addEventListener("blur", () => {
+  let n = parseInt($("scale-val").value.replace(/%/g, "").trim(), 10);
+  if (isNaN(n)) n = +$("scale").value;
+  n = Math.min(100, Math.max(50, n));
+  $("scale").value = n;
+  $("scale-val").value = n + "%";
+  applyTransforms();
+  setActiveChip(n);
+});
+setActiveChip(+$("scale").value);  // 初始高亮
+
+// ---------- 体检 ----------
+async function runReport() {
+  if (!ready || !inputBytes) return;
+  try {
+    pyodide.FS.writeFile("/tmp/in", inputBytes);
+    const sample = $("sample").value || "祝你天天开心哇";
+    const code = `import json\njson.dumps(report("/tmp/in", text=${JSON.stringify(sample)}, as_json=True))`;
+    const out = await pyodide.runPythonAsync(code);
+    const d = JSON.parse(out);
+    familyName = d.family || "";
+    if (familyName) $("fname").placeholder = "默认：" + familyName + " Narrow";
+
+    // 按语系自动选预览文字（韩文/英文/中文），仅当用户没手改过预览框
+    if (!sampleTouched && d.script_coverage) {
+      let auto = null;
+      if (d.script_coverage.hangul) auto = "좋은사랑 나누자";
+      else if (d.script_coverage.latin) auto = "ABCD efgh";
+      else if (d.script_coverage.cjk) auto = "祝你天天开心哇";
+      if (auto) {
+        $("sample").value = auto;
+        updatePreview();
+      }
+    }
+
+    const lic = d.license || {};
+    licSafe = lic.safe;
+    let badge;
+    if (lic.safe === true) badge = `<span class="badge ok">可修改/再分发</span>`;
+    else if (lic.safe === false) badge = `<span class="badge warn">受限：仅可自用</span>`;
+    else badge = `<span class="badge mid">未识别，需自查</span>`;
+
+    let html = "";
+    html += `<div><span class="k">字体名</span> ${d.family || "（无）"}</div>`;
+    html += `<div><span class="k">轮廓</span> ${d.outline}</div>`;
+    html += `<div><span class="k">字形数</span> ${d.glyphs}　<span class="k">简体可用度</span> ${d.simplified ? d.simplified.ratio + "%" : "—"}</div>`;
+    if (d.simplified && d.simplified.missing) {
+      html += `<div style="margin-top:6px;"><span class="k">缺字样例</span> ${d.simplified.missing.slice(0,40)}</div>`;
+    }
+    if (d.text_check && !d.text_check.ok) {
+      html += `<div style="margin-top:6px;color:var(--red);"><span class="k">预览文字缺</span> ${d.text_check.missing.join(" ")}</div>`;
+    }
+    html += `<div style="margin-top:8px;"><span class="k">许可</span> ${badge} ${lic.verdict || ""}</div>`;
+    if (lic.rfn) html += `<div style="color:var(--red);margin-top:4px;">⚠ 含保留字体名，衍生版必须改名（本工具已自动改名）。</div>`;
+    if (lic.safe === false) html += `<div style="color:var(--red);margin-top:4px;">⚠ 该许可禁止修改，改后请勿外发/商用交付。</div>`;
+
+    $("lic-body").innerHTML = html;
+    $("lic-card").classList.remove("hidden");
+  } catch (e) {
+    setStatus("体检失败：" + e.message, true);
+  }
+}
+
+// ---------- 生成 ----------
+$("gen").addEventListener("click", generate);
+
+async function generate() {
+  if (!ready || !inputBytes) { setStatus("请先上传字体并等待运行时就绪。", true); return; }
+  const genBtn = $("gen");
+  genBtn.disabled = true;
+  try {
+    setStatus("写入字体到本地运行时…");
+    pyodide.FS.writeFile("/tmp/in", inputBytes);
+
+    // 判断源是否为 OTF(CFF)
+    const isOtf = await pyodide.runPythonAsync(
+      `from fontTools.ttLib import TTFont\n' CFF ' in TTFont("/tmp/in")`);
+    const wantTtf = $("fmt").value === "ttf";
+    const scale = +$("scale").value / 100;
+    const slant = +$("slant").value;
+    const baseName = ($("fname").value || familyName || "Condensed").trim();
+    const outName = `${baseName} ${slant > 0 ? "Italic " : ""}Condensed ${$("scale").value}`;
+    // OFL 等自由字体：在版权里嵌入许可说明，满足「衍生版须携带 OFL」的要求
+    const note = (licSafe === true)
+      ? "Modified font · original under SIL Open Font License (OFL) · see OFL.txt"
+      : null;
+
+    let dstExt = wantTtf ? "ttf" : "otf";
+    setStatus(`正在收窄到 ${$("scale").value}%${slant > 0 ? " + 倾斜 " + slant + "°" : ""}（字体不出浏览器）…`);
+    await pyodide.runPythonAsync(
+      `condense("/tmp/in", "/tmp/out.${dstExt}", ${scale}, family=${JSON.stringify(outName)},` +
+      ` quiet=True, slant=${slant}` + (note ? `, note=${JSON.stringify(note)}` : ``) + `)`);
+
+    // OTF 源 + 要 TTF → 转一道（避免披 .ttf 皮的 OTF 被拒装）
+    let finalPath = `/tmp/out.${dstExt}`;
+    if (isOtf && wantTtf) {
+      setStatus("源为 OTF，正在转换为真正的 TTF…");
+      await pyodide.runPythonAsync(`convert("/tmp/out.ttf", "/tmp/final.ttf")`);
+      finalPath = "/tmp/final.ttf";
+    }
+
+    if (uiSlant !== 0 && $("fill").checked) {
+      throw new Error("倾斜与补字不能同时开启：补入的汉字会是正体，与倾斜风格不一致。");
+    }
+
+    // 可选：补字
+    if ($("fill").checked) {
+      setStatus("正在下载补字源（约 9MB，请稍候）…");
+      const url = $("fill-url").value.trim();
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("补字源下载失败：" + resp.status);
+      const noto = new Uint8Array(await resp.arrayBuffer());
+      pyodide.FS.writeFile("/tmp/noto.otf", noto);
+      setStatus("正在补齐缺失汉字…");
+      await pyodide.runPythonAsync(
+        `fill("/tmp/final.ttf" if ${isOtf && wantTtf} else "/tmp/out.${dstExt}", ` +
+        `"/tmp/noto.otf", "/tmp/filled.${dstExt}", family=${JSON.stringify(outName)}, quiet=True)`);
+      finalPath = `/tmp/filled.${dstExt}`;
+    }
+
+    setStatus("读取生成结果…");
+    const out = pyodide.FS.readFile(finalPath);
+    const fname = outName.replace(/[\\/:*?"<>|]/g, "_") + "." + dstExt;
+    download(out, fname);
+    setStatus("✓ 已生成并下载：" + fname);
+  } catch (e) {
+    setStatus("生成失败：" + e.message, true);
+  } finally {
+    genBtn.disabled = false;
+  }
+}
+
+function download(bytes, filename) {
+  const blob = new Blob([bytes], { type: "font/ttf" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+init();
+</script>
+</body>
+</html>
