@@ -228,6 +228,7 @@ let srcExt = "ttf";
 let familyName = "";
 let licSafe = null;         // 源字体许可是否可修改/再分发（OFL 等）
 let ready = false;
+let sampleTouched = false;  // 用户是否手动改过预览文字
 
 const $ = (id) => document.getElementById(id);
 const overlay = $("overlay");
@@ -359,6 +360,11 @@ function applyTransforms() {
   $("pv-narrow").style.transform = `scaleX(${s}) skewX(${a}deg)`;
   $("scale-val").textContent = $("scale").value + "%";
   $("slant-val").textContent = a + "°";
+}
+function setActiveChip(v) {
+  document.querySelectorAll(".chip").forEach((c) => {
+    c.classList.toggle("active", +c.dataset.v === v);
+  });
 }
 function syncFillAvailability() {
   const slant = +$("slant").value;
@@ -509,7 +515,7 @@ async function generate() {
       finalPath = "/tmp/final.ttf";
     }
 
-    if (uiSlant !== 0 && $("fill").checked) {
+    if (slant !== 0 && $("fill").checked) {
       throw new Error("倾斜与补字不能同时开启：补入的汉字会是正体，与倾斜风格不一致。");
     }
 
